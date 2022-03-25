@@ -1,0 +1,488 @@
+<!doctype html>
+<html>
+<head>
+<style>
+body{ background-color: ivory; }
+    .canvas {
+        border: 1px solid red;
+        padding-top: 5px;
+        padding-left: 0;
+        padding-right: 0;
+        margin-left: auto;
+        margin-right: auto;
+        display: block;
+        width: 800px;
+    }
+</style>
+<script>
+var canvas,
+    context,
+    dragging = false,
+    cursordragging=false,
+    dragStartLocation,
+    snapshot,
+    shape;
+
+
+    var connID = "ConnID: ";
+
+
+
+
+    
+    window.onload = function () {
+
+        var ws = new WebSocket('ws://localhost:5000');
+
+        //var ws = new WebSocket('ws://collborativedashboard.azurewebsites.net');
+
+        init();
+        
+
+        ws.onopen = function () {
+            
+            document.onmousemove = function (ev) {
+                shape = document.querySelector('input[type="radio"][name="shape"]:checked').value;
+                console.log('mouse move -' + ev.clientX);
+
+                console.log("move-" + connID.substring(8, connID.length));
+
+                ws.send(JSON.stringify({
+
+                    "From": connID.substring(8, connID.length),
+
+                    "To": "",
+
+                    "Message": JSON.stringify({ x: ev.clientX, y: ev.clientY, event: dragging, shape: shape })
+
+                }));
+
+                
+                            
+                //var position;
+                
+                //position = JSON.stringify({ x: ev.clientX, y: ev.clientY });
+                //draw(position, "polygon");
+                
+                
+                drag(ev);
+            }
+            
+            //document.onmouseup = function (event) {
+            //    dragStop(event);
+            //}
+
+        }
+
+        ws.onmessage = function (msg) {
+
+            //var stringObj = JSON.stringify(msg.data);
+
+            console.log("message- " + msg.data);
+
+            isConnID(msg.data);
+
+            //connID.innerHTML = "ConnID: " + (msg.data).substring(8, 45);
+
+            if (msg.data.indexOf('ConnID') < 0) {
+
+                var obj = JSON.parse(msg.data);
+
+                //    initialized = (obj.type) ? true : false;
+
+
+
+                //if (!initialized) {
+
+                //    initialized = true;
+
+                //for (var id in obj) {
+
+                //    move(id.From, id.Message);
+
+                //    }=
+
+                //} else {
+
+                if (ws.readyState === WebSocket.CLOSED) {
+                    if (obj.From != undefined) {
+                        remove(obj.From);
+                    }
+                } else {
+                    if (obj.From != undefined && obj.Message != undefined) {
+
+                        move(obj.From, JSON.parse(obj.Message));
+                    }
+                }
+
+                //}
+            }
+        }
+
+        function getCanvasCoordinates(event) {
+            console.log('getcavas ' + canvas.getBoundingClientRect().left);
+            var x = event.clientX - canvas.getBoundingClientRect().left,
+                y = event.clientY - canvas.getBoundingClientRect().top;
+
+            return { x: x, y: y };
+        }
+
+        function takeSnapshot() {
+            snapshot = context.getImageData(0, 0, canvas.width, canvas.height);
+        }
+
+        function restoreSnapshot() {
+            context.putImageData(snapshot, 0, 0);
+        }
+
+        function drawCircle(position) {
+            console.log('circle ' + dragStartLocation.x + ' position x ' + position.x + ' position y ' + position.y);
+            var radius = Math.sqrt(Math.pow((dragStartLocation.x - position.x), 2) + Math.pow((dragStartLocation.y - position.y), 2));
+            context.beginPath();
+            context.arc(dragStartLocation.x, dragStartLocation.y, radius, 0, 2 * Math.PI, false);
+            context.fillStyle = getRndColor();
+        }
+
+        function drawRectangle(position) {
+            console.log('rect ' + dragStartLocation.x + ' position draw ' + position.x);
+            //context.clearRect(0,0,canvas.width,canvas.height); //clear canvas
+            context.beginPath();
+            var width = position.x - dragStartLocation.x;
+            var height = position.y - dragStartLocation.y;
+            context.rect(dragStartLocation.x, dragStartLocation.y, width, height);
+            context.fillStyle = getRndColor();
+            //context.strokeStyle = getRndColor();
+            //context.lineWidth = 10;
+            //context.stroke();
+        }
+
+        function drawLine(position) {
+            context.beginPath();
+            context.strokeStyle = "#000";
+            //context.lineWidth = 10;
+            //context.lineJoin = "round";
+            //after moveTo we are resetting x and y values then calling lineTo with same x and y value;
+            // context.moveTo(position.x, position.y);
+            // position.x=dragStartLocation.x;position.y=dragStartLocation.y;
+            // context.lineTo(position.x, position.y);
+            //inplace of aabove code we can draw line without reset value 
+            context.moveTo(dragStartLocation.x, dragStartLocation.y);
+
+            context.lineTo(position.x, position.y);
+            context.stroke(); // draw it!
+            //context.closePath();
+            //context.stroke();
+        }
+
+        function drawFreehandLine(position) {
+            console.log('freehand ' + position.x)
+            context.beginPath();
+            context.strokeStyle = "#000";
+            context.lineCap = 'round';
+            //context.lineWidth = 10;
+            //context.lineJoin = "round";
+            //after moveTo we are resetting x and y values then calling lineTo with same x and y value;
+            // context.moveTo(position.x, position.y);
+            // position.x=dragStartLocation.x;position.y=dragStartLocation.y;
+            // context.lineTo(position.x, position.y);
+            //inplace of aabove code we can draw line without reset value 
+            context.moveTo(position.x, position.y);
+            dragStartLocation.x = position.x;
+            dragStartLocation.y = position.y;
+            context.lineTo(dragStartLocation.x, dragStartLocation.y);
+            context.stroke(); // draw it!
+            //context.closePath();
+            //context.stroke();
+        }
+
+
+
+        function draw(position, shape) {
+            console.log('draw ' + position.x);
+            //var fillBox = document.getElementById("fillBox"),
+                //shape = document.querySelector('input[type="radio"][name="shape"]:checked').value;
+            var radioButtons = document.querySelector('input[type="radio"][name="shape"]');
+            
+            for (var j = 0; j < radioButtons.length; j++) {
+                if (radioButtons[j].value == shape) {
+                    radioButtons[j].checked = true;
+                    break;
+                }
+            }
+            console.log('checked ' + shape);
+            if (shape === "circle") {
+                drawCircle(position);
+            }
+            else if (shape === "rect") {
+                drawRectangle(position);
+            }
+            else if (shape === "line") {
+                drawLine(position);
+            }
+            else if (shape === "freehandline") {
+                drawFreehandLine(position);
+            }
+            if (fillBox.checked) {
+                context.fill();
+            } else {
+                context.stroke();
+            }
+        }
+        
+        function dragStart(event) {
+            dragging = true;
+            dragStartLocation = getCanvasCoordinates(event);
+            takeSnapshot();
+        }
+        
+        function drag(event) {
+            
+            var position;
+            if (dragging === true) {
+                var fillBox = document.getElementById("fillBox"),
+                    currentshape = document.querySelector('input[type="radio"][name="shape"]:checked').value;
+                if (shape == undefined || shape == null || shape == "") {
+                    shape = currentshape;
+                }
+
+                if (shape != "freehandline") {
+                    restoreSnapshot();
+                }
+                //restoreSnapshot();
+                position = getCanvasCoordinates(event);
+                draw(position, shape);
+            }
+        }
+
+        function dragStop(event) {
+            dragging = false;
+            var fillBox = document.getElementById("fillBox"),
+                currentshape = document.querySelector('input[type="radio"][name="shape"]:checked').value;
+            if (shape == undefined || shape == null || shape == "") {
+                shape = currentshape;
+            }
+            if (shape != "freehandline") {
+                restoreSnapshot();
+            }
+            //restoreSnapshot();
+            var position = getCanvasCoordinates(event);
+            
+            draw(position, shape);
+        }       
+
+        function getRndColor() {
+            var r = 255 * Math.random(1) | 0,
+                g = 255 * Math.random() | 0,
+                b = 255 * Math.random() | 0;
+            return 'rgb(' + r + ',' + g + ',' + b + ')';
+        }
+
+        function eraseCanvas() {
+            context.clearRect(0, 0, canvas.width, canvas.height);
+        }
+        function init() {
+            canvas = document.createElement('canvas');
+            canvas.id = 'canvas';
+            document.body.appendChild(canvas);
+            canvas.setAttribute("class", "canvas");
+            context = canvas.getContext('2d');
+            context.strokeStyle = 'green';
+            context.lineWidth = 4;
+            context.lineCap = 'round';
+            clearCanvas = document.getElementById("clearCanvas");
+
+            document.addEventListener('mousedown', dragStart, false);
+            document.addEventListener('mousemove', drag, true);
+            document.addEventListener('mouseup', dragStop, false);
+            //clearCanvas.addEventListener("click", eraseCanvas, false);
+
+            var radioButtons = document.querySelector('input[type="radio"][name="shape"]');
+            radioButtons.addEventListener("change", () => {              
+                for (var j = 0; j < radioButtons.length; j++) {
+                    if (radioButtons[j].checked == true) {
+                        shape = radioButtons[j].value;
+                        break;
+                    }
+                }
+            });
+
+        }
+
+        //defaultImg();
+
+        function isConnID(str) {
+
+            console.log("isconid-" + str.substring(0, 7));
+
+            if (str.substring(0, 7) == "ConnID:")
+
+                connID = "ConnID: " + str.substring(8, 45);
+            console.log("isconid-if " + connID.substring(8, connID.length));
+
+        }
+
+        function move(id, pos) {
+
+            console.log("move id-" + id);
+
+            console.log("move event-" + pos.event);
+
+            //id = "f66751aa-c089-4348-9c23-bec52fd70965";
+
+            var cursor = document.getElementById('cursor-' + id);
+            var userInfo = document.getElementById('div-' + id);
+            var colors = ['red', 'blue', 'green', 'teal', 'rosybrown', 'tan', 'plum', 'saddlebrown'];
+            if (!cursor) {
+
+                console.log("not cursor -" + pos);
+
+                cursor = document.createElement('img');
+
+                cursor.src = 'cursor.png';
+
+                //cursor.src = 'C:/Ashwani/Project/chat/WebSocketServer/WebSocketServer/cursor.png';
+
+                cursor.id = 'cursor-' + id;
+
+                cursor.style.height = '15px';
+
+                cursor.style.width = '13px';
+
+                cursor.style.position = 'absolute';
+
+                document.body.appendChild(cursor);
+                                
+                //user info div
+                userInfo = document.createElement('div');
+                userInfo.id = 'div-' + id;
+
+
+                userInfo.setAttribute("class", "circle");
+                userInfo.innerHTML = id.slice(0, -(id.length - 2)).toUpperCase();
+                userInfo.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+
+                userInfo.style.position = 'absolute';
+
+                document.body.appendChild(userInfo);
+
+            }
+            userInfo.style.left = (pos.x + 10) + 'px';
+
+            userInfo.style.top = (pos.y + 10) + 'px';
+
+            console.log("move x -" + pos.x + " y-" + pos.y);
+
+            cursor.style.left = pos.x + 'px';
+
+            cursor.style.top = (pos.y + 2) + 'px';
+            //document.getElementById('cursor-' + id).style.display = 'none';
+            //document.getElementById('cursor-' + id).onclick = function () {
+            //    cursor.click();
+            //}
+
+            var position;
+            //var fillBox = document.getElementById("fillBox"),
+            //    shape = document.querySelector('input[type="radio"][name="shape"]:checked').value;
+            //if (shape != "freehandline") {
+            //    restoreSnapshot();
+
+            //}
+            //restoreSnapshot();
+            //position = JSON.stringify({ x: pos.x, y: pos.y });
+            //canvas = document.getElementById('canvas');
+            //if (!canvas) {
+            //    init();
+            //}
+            
+            //canvas.setAttribute("class", "canvas");
+            //context = canvas.getContext('2d');
+            //context.strokeStyle = 'green';
+            //context.lineWidth = 4;
+            //context.lineCap = 'round';
+            //clearCanvas = document.getElementById("clearCanvas");
+            var radioButtons = document.querySelector('input[type="radio"][name="shape"]');
+            shape = pos.shape;
+            for (var j = 0; j < radioButtons.length; j++) {
+                if (radioButtons[j].value == pos.shape) {
+                    radioButtons[j].checked == true;
+                    break;
+                }
+            }
+            //shape = document.querySelector('input[type="radio"][name="shape"]:checked').value;
+            console.log('move for draw ' + pos);
+            console.log('move for shape ' + shape);
+            
+            if (dragging === true || pos.event === true) {
+                
+                if (shape != "freehandline") {
+                    restoreSnapshot();
+                }
+                var x = pos.x - canvas.getBoundingClientRect().left,
+                    y = pos.y - canvas.getBoundingClientRect().top;
+                position = { x: x, y: y };
+                draw(position, shape);
+            }
+            
+            //cursor.ondragstart = function () {
+            //    if (shape != "freehandline") {
+            //        restoreSnapshot();
+            //    }
+            //    var x = pos.x - canvas.getBoundingClientRect().left,
+            //        y = pos.y - canvas.getBoundingClientRect().top;
+            //    position = { x: x, y: y };
+            //    draw(position, shape);
+            //};
+        }
+
+        function remove(id) {
+
+            var cursor = document.getElementById('cursor-' + id);
+
+            if (cursor) cursor.parentNode.removeChild(cursor);
+
+        }
+
+        function defaultImg() {
+
+            var cursor2 = document.getElementById('cursor-2');
+
+            console.log('default');
+
+            if (!cursor2) {
+
+                cursor2 = document.createElement('img');
+
+                cursor2.src = 'C:/Ashwani/Project/chat/WebSocketServer/WebSocketServer/cursor.png';
+
+                cursor2.id = 'cursor-2';
+
+                cursor2.style.height = '15px';
+
+                cursor2.style.width = '13px';
+
+                document.body.appendChild(cursor2);
+
+            }
+
+            cursor2.style.left = '71px';
+
+            cursor2.style.top = '512px';
+
+        }
+
+    }
+</script>
+</head>
+<body>
+<div id="controls">
+    <p><label>Fill: <input id="fillBox" type="checkbox" checked="checked"></label></p>
+
+    <div class="lightBorder">
+        <p><input type="radio" name="shape" value="circle" checked="checked">Circle <input type="radio" name="shape" value="rect" checked="checked">rect <input type="radio" name="shape" value="line" checked="checked">line <input type="radio" name="shape" value="freehandline" checked="checked">freehandline</p>
+    </div>
+
+    <p><input id="clearCanvas" type="button" value="reset"></p>
+</div>
+
+</body>
+</html>

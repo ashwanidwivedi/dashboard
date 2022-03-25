@@ -1,0 +1,273 @@
+﻿<!doctype html>
+
+<html>
+<head>
+    <title>Collaborative Dashboard</title>
+    <style type="text/css">
+        * {
+            cursor: none;
+        }
+        .cursor {
+            position: fixed;
+            pointer-events: none;
+            opacity: 0;
+        }
+        .circle {
+            width: 30px;
+            height: 30px;
+            line-height: 30px;
+            border-radius: 50%;
+            font-size: 15px;
+            color: #fff;
+            text-align: center;
+            background: #000
+        }
+        .div {
+            padding-top: 5px;
+            padding-left: 0;
+            padding-right: 0;
+            margin-left: auto;
+            margin-right: auto;
+            display: block;
+            width: 850px;
+            border: 2px solid #b200ff
+        }
+        canvas {
+            padding-top:5px;
+            padding-left: 0;
+            padding-right: 0;
+            margin-left: auto;
+            margin-right: auto;
+            display: block;
+            width: 800px;
+        }
+    </style>
+    <script>
+        var connID = "ConnID: ";
+
+        window.onload = function () {
+
+            var ws = new WebSocket('ws://localhost:5000');
+
+            //var ws = new WebSocket('ws://collborativedashboard.azurewebsites.net');
+
+            ws.onopen = function () {
+
+                document.onmousemove = function (ev) {
+
+                    console.log('mouse move -' + ev.data);
+
+                    console.log("move-" + connID.substring(8, connID.length));
+
+                    ws.send(JSON.stringify({
+
+                        "From": connID.substring(8, connID.length),
+
+                        "To": "",
+
+                        //"Message": "x:" + ev.clientX + "y:" + ev.clientY
+
+                        "Message": JSON.stringify({ x: + ev.clientX, y: + ev.clientY })
+
+                        //x: ev.clientX,
+
+                        //y: ev.clientY
+
+                        // x: 3,
+
+                        //y: 191
+
+                    }));
+
+                }
+
+            }
+
+
+
+            ws.onmessage = function (msg) {
+
+                //var stringObj = JSON.stringify(msg.data);
+
+                console.log("message- " + msg.data);
+
+                isConnID(msg.data);
+
+                //connID.innerHTML = "ConnID: " + (msg.data).substring(8, 45);
+
+                if (msg.data.indexOf('ConnID') < 0) {
+
+                    var obj = JSON.parse(msg.data);
+
+                    //    initialized = (obj.type) ? true : false;
+
+
+
+                    //if (!initialized) {
+
+                    //    initialized = true;
+
+                    //for (var id in obj) {
+
+                    //    move(id.From, id.Message);
+
+                    //    }=
+
+                    //} else {
+
+                    if (ws.readyState === WebSocket.CLOSED) {
+
+                        if (obj.From != undefined) {
+
+                            remove(obj.From);
+
+                        }
+
+
+
+                    } else {
+
+                        if (obj.From != undefined && obj.Message != undefined) {
+
+                            move(obj.From, JSON.parse(obj.Message));
+
+                        }
+
+
+
+                    }
+
+                    //}
+
+
+
+                }
+
+            }
+
+            //defaultImg();
+
+            function isConnID(str) {
+
+                console.log("isconid-" + str.substring(0, 7));
+
+                if (str.substring(0, 7) == "ConnID:")
+
+                    connID = "ConnID: " + str.substring(8, 45);
+                console.log("isconid-if " + connID.substring(8, connID.length));
+
+            }
+
+            function move(id, pos) {
+
+                console.log("move id-" + id);
+
+                console.log("move pos-" + pos);
+
+                //id = "f66751aa-c089-4348-9c23-bec52fd70965";
+
+                var cursor = document.getElementById('cursor-' + id);
+                var userInfo = document.getElementById('div-' + id);
+                var colors = ['red', 'blue', 'green', 'teal', 'rosybrown', 'tan', 'plum', 'saddlebrown'];
+                if (!cursor) {
+
+                    console.log("not cursor -" + pos);
+
+                    cursor = document.createElement('img');
+
+                    cursor.src = 'cursor.png';
+
+                    //cursor.src = 'C:/Ashwani/Project/chat/WebSocketServer/WebSocketServer/cursor.png';
+
+                    cursor.id = 'cursor-' + id;
+
+                    cursor.style.height = '15px';
+
+                    cursor.style.width = '13px';
+
+                    cursor.style.position = 'absolute';
+
+                    document.body.appendChild(cursor);
+
+                    //user info div
+                    userInfo = document.createElement('div');
+                    userInfo.id = 'div-' + id;
+
+                    
+                    userInfo.setAttribute("class", "circle");
+                    userInfo.innerHTML = id.slice(0,-(id.length - 2)).toUpperCase();
+                    userInfo.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+
+                    userInfo.style.position = 'absolute';
+
+                    document.body.appendChild(userInfo);
+
+                }
+                userInfo.style.left = (pos.x + 10) + 'px';
+
+                userInfo.style.top = (pos.y + 10) + 'px';
+
+                console.log("move x -" + pos.x + " y-" + pos.y);
+
+                cursor.style.left = pos.x + 'px';
+
+                cursor.style.top = (pos.y + 2) + 'px';
+                //document.getElementById('cursor-' + id).style.display = 'none';
+                //document.getElementById('cursor-' + id).onclick = function () {
+                //    cursor.click();
+                //}
+
+            }
+
+            function remove(id) {
+
+                var cursor = document.getElementById('cursor-' + id);
+
+                if (cursor) cursor.parentNode.removeChild(cursor);
+
+            }
+
+            function defaultImg() {
+
+                var cursor2 = document.getElementById('cursor-2');
+
+                console.log('default');
+
+                if (!cursor2) {
+
+                    cursor2 = document.createElement('img');
+
+                    cursor2.src = 'C:/Ashwani/Project/chat/WebSocketServer/WebSocketServer/cursor.png';
+
+                    cursor2.id = 'cursor-2';
+
+                    cursor2.style.height = '15px';
+
+                    cursor2.style.width = '13px';
+
+                    document.body.appendChild(cursor2);
+
+                }
+
+                cursor2.style.left = '71px';
+
+                cursor2.style.top = '512px';
+
+            }
+
+        }
+
+    </script>
+</head>
+<body>
+   
+    <h1>Collaborative Dashboard</h1>
+    <div class="div" >
+        <input type="text" name="title" id="name">
+        <input type="file" name="image" accept="image/*" capture="environment">
+        <br>
+        <canvas id="canvas"></canvas>
+        </div>
+</body>
+<script src="WebsocketClientScript.js"></script>
+</html>

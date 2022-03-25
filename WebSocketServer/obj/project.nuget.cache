@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "SNO2H0RCA1+2U5qbWSn7wutzJiHtEyL7k+b/a3b9gsAPvSlmmNYtVd7MGSAkgmA5KgQwY2r1tGowd/kLmd/bqw==",
+  "success": true,
+  "projectFilePath": "E:\\DotNet\\WebSocket\\DemoTwo\\WebSocketServer\\WebSocketServer.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Ashwani\\.nuget\\packages\\newtonsoft.json\\13.0.1\\newtonsoft.json.13.0.1.nupkg.sha512"
+  ],
+  "logs": []
+}

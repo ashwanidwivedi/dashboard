@@ -1,0 +1,3 @@
+is_global = true
+build_property.RootNamespace = WebSocketServer
+build_property.ProjectDir = E:\DotNet\WebSocket\DemoTwo\WebSocketServer\
